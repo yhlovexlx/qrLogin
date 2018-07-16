@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="UserMapper">
+	<!-- 
+		<cache eviction="FIFO"  flushInterval="60000" size="512"  readOnly="true"/>
+	 -->
+		<!-- 结果集映射   -->
+		<resultMap type="User" id="UserResult">
+			<id column="id" property="id"/>
+			<result property="userName" column="user_name"/>
+			<result property="age" column="age"/>
+		</resultMap>
+		
+		<!-- 分布查询 -->
+		<resultMap type="User" id="UserAndPrivilegeResult" extends="UserResult">
+			<collection 
+				property="privileges" column="id" 
+				select="PrivilegeMapper.selectPrivilegeList">
+			</collection>
+		</resultMap>
+	
+		<!-- 嵌套查询 -->
+		<resultMap type="User" id="UserAndPrivilegeResult2" extends="UserResult" >
+			 <collection property="privileges" javaType="Privilege"  fetchType="lazy">
+				<result property="id" column="pid"/>
+				<result property="url" column="url"/>
+			 </collection>
+		</resultMap>
+		
+		<select id="selectUserById" resultMap="UserResult">
+			select * from users where id=#{id}
+		</select>
+		
+		<select id="selectUserList" resultMap="UserResult">
+			select * from users 
+		</select>
+		
+		<select id="selectUserWithPrivilegeList" resultMap="UserAndPrivilegeResult">
+			select * from users 
+		</select>
+		
+		<!-- 动态sql if,chose,where,set -->
+		<select id="selectUserWithPrivilegeList2" resultMap="UserAndPrivilegeResult2">
+			select u.*, p.id as pid, p.url from users u 
+			left join user_privilege up on up.user_id=u.id 
+			left join privilege p on up.privilege_id=p.id
+			<where>
+				<!-- if只要满足就拼装
+				<if test="id != null">
+					u.id = #{id}			
+				</if>
+				<if test="userName!=null and userName!=''">
+					and user_name = #{_userName}
+				</if>
+				 -->
+				<!-- choose 只满足一个，相当于switch..case..break -->
+				<choose>
+					<when test="id != 0">
+						u.id = #{id}	
+					</when>
+					<when test="userName!=null and userName!=''">
+							and u.user_name = #{userName}
+					</when>
+				</choose>
+			</where>
+		</select>
+		
+		
+		<!-- set 解决更新sql -->
+		<update id="updateUser">
+			update users
+			<set>
+				<choose>
+					<when test="age != 0">
+						age = #{age},	
+					</when>
+					<when test="userName!=null and userName!=''">
+						user_name = #{userName},
+					</when>
+				</choose>
+			</set>
+			where id=#{id}
+		</update>
+		
+		<!-- foreach  -->
+		<select id="selectUserListByIds" resultMap="UserResult">
+			select *from users
+			<foreach collection="list" separator="," item="item" open=" where id in (" close=")">
+				#{item}
+			</foreach>
+		
+		</select>
+		
+		
+		
+		
+		
+		
+</mapper>
